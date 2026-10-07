@@ -3,3 +3,5 @@ black
 ruff
 uvicorn
 python-dotenv
+pytest
+httpx2
