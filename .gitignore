@@ -14,6 +14,7 @@
 *serviceAccount*.json
 *service-account*.json
 *firebase-adminsdk*.json
+*-sa.json
 
 # ---------- Node / Next.js ----------
 node_modules/
