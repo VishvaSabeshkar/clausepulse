@@ -19,6 +19,10 @@ _ENV_VAR = "FIREBASE_SERVICE_ACCOUNT_B64"
 _init_lock = threading.Lock()
 
 
+def _misconfigured() -> ApiError:
+    return ApiError(500, "SERVER_MISCONFIGURED", "Server auth is not configured")
+
+
 def get_firebase_app() -> firebase_admin.App:
     """Return the Firebase app, creating it on first use.
 
@@ -35,9 +39,16 @@ def get_firebase_app() -> firebase_admin.App:
         encoded = os.environ.get(_ENV_VAR)
         if not encoded:
             logger.error("%s is not set", _ENV_VAR)
-            raise ApiError(500, "SERVER_MISCONFIGURED", "Server auth is not configured")
+            raise _misconfigured()
 
         # Stored as base64 so no tool can mangle the \n characters inside the
         # private key (security.md §4).
-        service_account = json.loads(base64.b64decode(encoded))
-        return firebase_admin.initialize_app(credentials.Certificate(service_account))
+        try:
+            service_account = json.loads(base64.b64decode(encoded))
+            cred = credentials.Certificate(service_account)
+        except ValueError:
+            # Bad base64, bad JSON and an invalid key file are all ValueError
+            # subclasses. Log the details for us; give the client clean JSON.
+            logger.exception("%s is set but could not be decoded", _ENV_VAR)
+            raise _misconfigured() from None
+        return firebase_admin.initialize_app(cred)
